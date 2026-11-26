@@ -1,0 +1,1182 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Build Albion</title>
+<meta name="description" content="Analisi delle build di Albion Online dal killboard">
+<meta name="theme-color" content="#14161b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icona.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icona-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Build Albion">
+<style>
+:root {
+  --bg: #f4f2ee; --card: #ffffff; --card2: #f0ede7; --text: #1d1f23; --muted: #6b6f78;
+  --line: #e2ded6; --accent: #b0731c; --accent-soft: #f6e9d3; --win: #2f8a4d; --lose: #c0413a;
+  --bar: #d9b27a; --chip: #ebe7df; --shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161b; --card: #1d2027; --card2: #252932; --text: #ebe7df; --muted: #9aa0ab;
+    --line: #2e333d; --accent: #e0a24a; --accent-soft: #3a2f1f; --win: #5cc27e; --lose: #ef6b62;
+    --bar: #a7783a; --chip: #2a2e37; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161b; --card: #1d2027; --card2: #252932; --text: #ebe7df; --muted: #9aa0ab;
+  --line: #2e333d; --accent: #e0a24a; --accent-soft: #3a2f1f; --win: #5cc27e; --lose: #ef6b62;
+  --bar: #a7783a; --chip: #2a2e37; --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+button, input, select { font: inherit; color: inherit; }
+a { color: inherit; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 16px calc(32px + env(safe-area-inset-bottom)); }
+header.top { position: sticky; top: 0; z-index: 5; background: var(--bg);
+  padding: calc(10px + env(safe-area-inset-top)) 0 8px; border-bottom: 1px solid var(--line); }
+.row { display: flex; align-items: center; gap: 8px; }
+.between { justify-content: space-between; }
+h1 { font-size: 19px; margin: 0; letter-spacing: .2px; }
+h2 { font-size: 16px; margin: 18px 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 6px 0 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 0; background: var(--chip); padding: 6px 11px; border-radius: 99px;
+  font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] .chip[aria-pressed="true"] { color: #1d1f23; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chip[aria-pressed="true"] { color: #1d1f23; } }
+.filtri-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-right: 2px; flex: none; }
+.cerca { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--card); margin: 12px 0 8px; font-size: 16px; }
+.card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+.lista { list-style: none; margin: 0; padding: 0; }
+.lista > li { border-bottom: 1px solid var(--line); }
+.lista > li:last-child { border-bottom: 0; }
+.voce { display: flex; align-items: center; gap: 10px; padding: 9px 12px; width: 100%; text-align: left;
+  background: none; border: 0; cursor: pointer; }
+.voce:active { background: var(--card2); }
+.ico { width: 40px; height: 40px; flex: none; border-radius: 8px; background: var(--card2); object-fit: contain; }
+.ico.big { width: 64px; height: 64px; }
+.ico.sm { width: 34px; height: 34px; }
+.cresci { flex: 1; min-width: 0; }
+.nome { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.num { font-variant-numeric: tabular-nums; text-align: right; flex: none; }
+.win { color: var(--win); } .lose { color: var(--lose); }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.tile { padding: 10px; text-align: center; }
+.tile b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 12px; color: var(--muted); }
+.barra { height: 6px; background: var(--card2); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.barra > i { display: block; height: 100%; background: var(--bar); border-radius: 3px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kv { padding: 10px 12px; }
+.kv .r { display: flex; justify-content: space-between; font-size: 14px; margin: 4px 0 0; }
+.tabs { display: flex; gap: 4px; margin: 16px 0 4px; background: var(--chip); padding: 4px; border-radius: 10px; }
+.tab { flex: 1; border: 0; background: none; padding: 7px 2px; border-radius: 7px; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { background: var(--card); box-shadow: var(--shadow); font-weight: 600; }
+.slot-tit { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); padding: 10px 12px 2px; }
+.build { padding: 10px 12px; cursor: pointer; }
+.build .icone { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.tier { font-size: 11px; color: var(--muted); }
+.vuoto { padding: 24px 12px; text-align: center; color: var(--muted); }
+.indietro { border: 0; background: var(--chip); border-radius: 99px; padding: 6px 12px; cursor: pointer; }
+.tasto { display: inline-block; min-width: 26px; padding: 2px 6px; border-radius: 6px; background: var(--accent-soft);
+  color: var(--accent); font-weight: 700; font-size: 12px; text-align: center; margin-right: 6px; }
+.skill { padding: 10px 12px; }
+.skill p { margin: 4px 0 0; font-size: 13.5px; white-space: pre-line; color: var(--muted); }
+.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: none; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-height: 82vh; overflow-y: auto;
+  background: var(--card); border-radius: 16px 16px 0 0; padding: 14px 16px calc(20px + env(safe-area-inset-bottom));
+  transform: translateY(100%); transition: transform .2s ease; max-width: 720px; margin: 0 auto; }
+.sheet:not(.aperto) { visibility: hidden; transition: transform .2s ease, visibility 0s .2s; }
+.sheet.aperto { transform: none; }
+.sheet-bg.aperto { display: block; }
+.nota { font-size: 12.5px; color: var(--muted); margin: 8px 2px; }
+select.chip { appearance: none; -webkit-appearance: none; padding-right: 24px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 11px center, right 7px center; background-size: 4px 4px; background-repeat: no-repeat; }
+.filtri { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.filtri select { width: 100%; min-width: 0; text-overflow: ellipsis; font-size: 13px; padding-left: 10px; padding-right: 20px; background-position: right 9px center, right 5px center; }
+.filtri select.attivo { background-color: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.tema { border: 0; background: none; font-size: 18px; cursor: pointer; padding: 4px; }
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--card); border-top: 1px solid var(--line);
+  display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom); }
+.nav-in { display: flex; width: 100%; max-width: 720px; }
+.nav button { flex: 1; min-width: 0; border: 0; background: none; padding: 8px 0 9px; font-size: 11px; cursor: pointer; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.nav button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav button[aria-current="page"] { color: var(--accent); font-weight: 600; }
+.wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+.ore { display: flex; align-items: flex-end; gap: 2px; height: 120px; padding: 12px 12px 0; }
+.ore > div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+.ore i { display: block; background: var(--bar); border-radius: 3px 3px 0 0; min-height: 1px; }
+.ore i.sel { background: var(--accent); }
+.ore-lab { display: flex; gap: 2px; padding: 4px 12px 10px; font-size: 10.5px; color: var(--muted); }
+.ore-lab span { flex: 1; text-align: center; }
+.comp { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 6px; background: var(--card2); }
+.comp i { display: block; height: 100%; }
+.leg { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin: 6px 2px 0; }
+.leg b { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+.pill { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 99px; background: var(--chip); margin: 2px 4px 0 0; }
+.su { color: var(--win); } .giu { color: var(--lose); }
+.pill.pochi { background: var(--accent-soft); color: var(--accent); font-size: 11px; margin: 0 0 0 4px; vertical-align: 1px; }
+.stella { color: var(--accent); margin-left: 4px; }
+.avviso { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
+#agg { font-weight: 600; color: var(--text); }
+.btn { border: 0; background: var(--chip); border-radius: 99px; padding: 6px 12px; cursor: pointer; font-size: 13.5px; }
+.btn[aria-pressed="true"] { background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="row between">
+      <h1>Build Albion</h1>
+      <div class="row">
+        <span id="agg" class="small muted"></span>
+        <button class="tema" id="tema" aria-label="Cambia tema">◐</button>
+      </div>
+    </div>
+    <div class="filtri">
+      <select class="chip" id="f-server" aria-label="Server"></select>
+      <select class="chip" id="f-ctx" aria-label="Contesto"></select>
+      <select class="chip" id="f-periodo" aria-label="Periodo"></select>
+    </div>
+    <div id="avviso" class="avviso" hidden></div>
+  </header>
+  <main id="vista"><div class="vuoto">Carico i dati…</div></main>
+</div>
+<nav class="nav"><div class="nav-in">
+  <button data-nav="" aria-label="Armi"><svg viewBox="0 0 24 24"><path d="M5 19 19 5M9 19l-4-4M15 5h4v4"/></svg>Armi</button>
+  <button data-nav="meta" aria-label="Meta"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Meta</button>
+  <button data-nav="orari" aria-label="Traffico"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Traffico</button>
+  <button data-nav="gruppi" aria-label="Gruppi e ZvZ"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 19c0-3 2.5-5 5-5s5 2 5 5M11 19c0-3 2.5-5 5-5s5 2 5 5"/></svg>Gruppi</button>
+  <button data-nav="scontro" aria-label="Scontro"><svg viewBox="0 0 24 24"><path d="M4 20 14 10M20 20 10 10M14 4h6v6M10 4H4v6"/></svg>Scontro</button>
+  <button data-nav="gilde" aria-label="Gilde"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/></svg>Gilde/Gioc.</button>
+</div></nav>
+<div class="sheet-bg" id="sheet-bg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+
+<script>
+"use strict";
+const SLOT = ["Arma", "Offhand", "Testa", "Armatura", "Scarpe", "Mantello", "Cibo", "Pozione"];
+const SERVER_NOMI = { europa: "Europa", americhe: "Americhe", asia: "Asia" };
+const CTX = ["Solo", "Gruppo", "ZvZ"];
+const PERIODI = [["14", "14 giorni"], ["7", "7 giorni"], ["3", "3 giorni"], ["1", "24 ore"]];
+const CAT = ["Tank", "Healer", "Supporto", "DPS"];
+const CAT_COL = ["#4f7cc9", "#3fa66a", "#a067c8", "#d9822b"];
+const MATCH_IP = 150;
+const FASCE_IP = [[-1e9, -150, "−150 o meno"], [-150, -50, "da −150 a −50"], [-50, 50, "pari (±50)"], [50, 150, "da +50 a +150"], [150, 1e9, "+150 o più"]];
+const FASCE_ORA = [[0, 6, "Notte 0-6"], [6, 12, "Mattina 6-12"], [12, 18, "Pomeriggio 12-18"], [18, 24, "Sera 18-24"]];
+const st = { server: "tutti", ctx: "tutti", periodo: "14", ordine: "usi", cerca: "", cercaGilda: "", cercaGioc: "", ruolo: "tutti", minScontri: 5, fascia: 3, zona: "tutte", mia: "", mioIP: "", nemico: "", nemicoIP: "" };
+let D = null, G = {};
+let IT = [];
+let cache = null;
+
+try { Object.assign(st, JSON.parse(localStorage.getItem("filtri") || "{}")); st.cerca = ""; st.cercaGilda = ""; } catch (e) {}
+try { const t = localStorage.getItem("tema"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+const nome = base => (G[base] && G[base].nome) || base.replace(/_/g, " ");
+const icona = (base, cls = "") => base
+  ? `<img class="ico ${cls}" loading="lazy" alt="" src="https://render.albiononline.com/v1/item/T8_${encodeURIComponent(base)}.png?size=80" onerror="this.style.visibility='hidden'">`
+  : `<span class="ico ${cls}"></span>`;
+const ruolo = base => (D.ruoli && D.ruoli[base]) || "";
+const categoria = base => { const r = ruolo(base); return r.startsWith("Tank") ? 0 : r.startsWith("Heal") ? 1 : r.startsWith("Support") ? 2 : 3; };
+const winCls = (v, n) => pct(v, n) >= 50 ? "win" : "lose";
+const ORA_IT = new Intl.DateTimeFormat("it-IT", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/Rome" });
+const ora = minuti => Number(ORA_IT.format(new Date(minuti * 60000)));
+const haGilde = () => D.gilde && D.gilde.length > 0;
+
+function salva() {
+  try { localStorage.setItem("filtri", JSON.stringify({ server: st.server, ctx: st.ctx, periodo: st.periodo, ordine: st.ordine, ruolo: st.ruolo, minScontri: st.minScontri, fascia: st.fascia, mia: st.mia, mioIP: st.mioIP, nemico: st.nemico, nemicoIP: st.nemicoIP, build: st.build || {} })); } catch (e) {}
+}
+
+async function carica() {
+  const [rd, rg] = await Promise.all([fetch("dati.json.gz", { cache: "no-cache" }), fetch("giocodati.json")]);
+  if (!rd.ok) throw new Error("dati non trovati (" + rd.status + ")");
+  G = rg.ok ? await rg.json() : {};
+  const buf = await rd.arrayBuffer();
+  const u = new Uint8Array(buf);
+  let testo;
+  if (u[0] === 0x1f && u[1] === 0x8b) {
+    const flusso = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+    testo = await new Response(flusso).text();
+  } else testo = new TextDecoder().decode(buf);
+  D = JSON.parse(testo);
+  D.gilde = D.gilde || [];
+  IT = D.items.map(t => { const m = /^T(\d+)_(.+?)(?:@(\d+))?$/.exec(t); return m ? { base: m[2], tier: `T${m[1]}.${m[3] || 0}` } : { base: t, tier: "" }; });
+  const [, mm, gg, hh] = /^\d{4}-(\d\d)-(\d\d) (\d\d:\d\d)/.exec(D.info.aggiornato) || [];
+  $("#agg").textContent = gg ? `Dati del ${gg}/${mm} ore ${hh}` : "";
+  // la raccolta gira ogni 2 ore: oltre 3 ore vuol dire che il PC non ha caricato i dati nuovi
+  const quando = new Date(D.info.aggiornato.replace(" ", "T"));
+  const ore = (Date.now() - quando.getTime()) / 3600000;
+  if (!isNaN(ore) && ore > 3) {
+    const testo = ore >= 48 ? `${Math.floor(ore / 24)} giorni` : `${Math.floor(ore)} ore`;
+    $("#avviso").textContent = `⚠ Dati di ${testo} fa: il PC non ha caricato quelli nuovi (spento o invio a GitHub non riuscito).`;
+    $("#avviso").hidden = false;
+  }
+}
+
+// ---------------------------------------------------------------- filtri
+// righe: righe che passano tutti i filtri; okEvNoCtx: eventi che passano server+periodo (per match up e IP)
+function filtra() {
+  if (cache) return cache;
+  const srv = D.info.server.indexOf(st.server);
+  const ctx = CTX.indexOf(st.ctx);
+  const ultimo = D.eventi.reduce((m, e) => Math.max(m, e[1]), 0);
+  const da = ultimo - Number(st.periodo) * 1440;
+  const okSrv = D.eventi.map(e => st.server === "tutti" || e[0] === srv);
+  const okEvNoCtx = D.eventi.map((e, i) => okSrv[i] && e[1] >= da);
+  const okEv = D.eventi.map((e, i) => okEvNoCtx[i] && (st.ctx === "tutti" || e[2] === ctx));
+  const okEvNoPer = D.eventi.map((e, i) => okSrv[i] && (st.ctx === "tutti" || e[2] === ctx));
+  cache = { righe: D.righe.filter(r => okEv[r[0]] && r[3] >= 0), okEv, okEvNoCtx, okEvNoPer, ultimo, da };
+  return cache;
+}
+const baseArma = r => IT[r[3]].base;
+
+function filtriUI() {
+  const mk = (id, voci, chiave, predef) => {
+    const sel = $(id);
+    sel.innerHTML = voci.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("");
+    if (!voci.some(([v]) => v === st[chiave])) st[chiave] = predef;
+    sel.value = st[chiave];
+    sel.classList.toggle("attivo", st[chiave] !== predef);
+    sel.onchange = () => { st[chiave] = sel.value; cache = null; salva(); filtriUI(); mostra(); };
+  };
+  mk("#f-server", [["tutti", "Tutti i server"]].concat(D.info.server.map(s => [s, SERVER_NOMI[s] || s])), "server", "tutti");
+  mk("#f-ctx", [["tutti", "Ogni scontro"]].concat(CTX.map(c => [c, c])), "ctx", "tutti");
+  mk("#f-periodo", PERIODI, "periodo", "14");
+}
+
+// scontri 1 contro 1 (contesto Solo, server e periodo filtrati): [{k, v}] con k = riga killer, v = riga vittima
+function duelli() {
+  const f = filtra();
+  if (f.duelli) return f.duelli;
+  const per = new Map();
+  for (const r of D.righe) {
+    if (!f.okEvNoCtx[r[0]] || D.eventi[r[0]][2] !== 0 || r[3] < 0) continue;
+    let e = per.get(r[0]);
+    if (!e) per.set(r[0], e = {});
+    if (r[1] === 0) e.k = r; else if (r[1] === 2) e.v = r;
+  }
+  return f.duelli = [...per.values()].filter(e => e.k && e.v);
+}
+
+// ---------------------------------------------------------------- statistiche
+function statArmi(righe) {
+  const m = new Map();
+  for (const r of righe) {
+    const b = baseArma(r);
+    let a = m.get(b);
+    if (!a) m.set(b, a = { base: b, usi: 0, vinte: 0, ip: 0 });
+    a.usi++; a.vinte += r[1] !== 2; a.ip += r[2];
+  }
+  return [...m.values()];
+}
+
+function statBuild(righe) {
+  const build = new Map();
+  for (const r of righe) {
+    const chiave = [baseArma(r)];
+    for (let i = 1; i < 8; i++) chiave.push(r[3 + i] >= 0 ? IT[r[3 + i]].base : "");
+    const k = chiave.join("|");
+    let bb = build.get(k);
+    if (!bb) build.set(k, bb = { pezzi: chiave, usi: 0, vinte: 0, ip: 0, tier: new Map(), gioc: new Set() });
+    bb.usi++; bb.vinte += r[1] !== 2; bb.ip += r[2];
+    if (r[13] !== undefined) bb.gioc.add(r[13]);
+    const t = IT[r[3]].tier; bb.tier.set(t, (bb.tier.get(t) || 0) + 1);
+  }
+  // prima le build usate da più giocatori diversi: una build ripetuta da una sola persona non è "meta"
+  return [...build.values()].sort((a, b) => b.gioc.size - a.gioc.size || b.usi - a.usi);
+}
+// avviso quando un numero si basa su pochi casi
+const POCHI = 15;
+const pochi = n => n < POCHI ? ` <span class="pill pochi" title="Meno di ${POCHI} casi: prendilo come indizio">pochi dati</span>` : "";
+
+// ---------------------------------------------------------------- le mie armi (spec della Tavola del destino)
+// salvate solo su questo telefono; di partenza il Bastone sacro (spec 100 nella tavola di Ciro)
+let MIE = new Set(["MAIN_HOLYSTAFF"]);
+try { const m = JSON.parse(localStorage.getItem("mie") || "null"); if (Array.isArray(m)) MIE = new Set(m); } catch (e) {}
+const salvaMie = () => { try { localStorage.setItem("mie", JSON.stringify([...MIE])); } catch (e) {} };
+const eArma = base => !!(D && D.ruoli && D.ruoli[base]) || /^(MAIN|2H)_/.test(base);
+const stella = base => MIE.has(base) ? `<span class="stella" title="Hai la spec">★</span>` : "";
+
+function fasceIP(lista) {   // lista di [differenza IP, vinto?]
+  const out = FASCE_IP.map(([da, a, t]) => ({ t, n: 0, v: 0, da, a }));
+  for (const [d, w] of lista) {
+    const f = out.find(x => d >= x.da && d < x.a);
+    f.n++; f.v += w;
+  }
+  return out;
+}
+
+function statArma(base) {
+  const { righe } = filtra();
+  const mie = righe.filter(r => baseArma(r) === base);
+  const s = { usi: mie.length, vinte: 0, ip: 0, server: {}, ctx: [0, 0, 0], pezzi: SLOT.map(() => new Map()) };
+  for (const r of mie) {
+    const ev = D.eventi[r[0]];
+    const w = r[1] !== 2;
+    s.vinte += w; s.ip += r[2];
+    const srv = D.info.server[ev[0]] || "?";
+    s.server[srv] = (s.server[srv] || 0) + 1;
+    s.ctx[ev[2]]++;
+    for (let i = 1; i < 8; i++) {
+      const it = r[3 + i];
+      if (it < 0) continue;
+      const b = IT[it].base;
+      const p = s.pezzi[i].get(b) || { n: 0, v: 0 };
+      p.n++; p.v += w; s.pezzi[i].set(b, p);
+    }
+  }
+  s.build = statBuild(mie);
+  const mu = new Map(), ip = [];
+  for (const { k, v } of duelli()) {
+    const bk = baseArma(k), bv = baseArma(v);
+    if (bk !== base && bv !== base) continue;
+    const mio = bk === base ? k : v, altro = bk === base ? v : k;
+    if (bk !== bv) ip.push([mio[2] - altro[2], bk === base ? 1 : 0]);
+    if (bk === bv || Math.abs(k[2] - v[2]) >= MATCH_IP) continue;
+    const ob = baseArma(altro);
+    let x = mu.get(ob);
+    if (!x) mu.set(ob, x = { base: ob, n: 0, vinte: 0 });
+    x.n++; x.vinte += bk === base;
+  }
+  s.matchup = [...mu.values()];
+  s.ipFasce = fasceIP(ip);
+  return s;
+}
+
+// ---------------------------------------------------------------- navigazione
+function mostra() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  const sezione = h.startsWith("arma/") ? "" : (h.startsWith("gilda/") || h.startsWith("giocator")) ? "gilde" : h;
+  document.querySelectorAll("[data-nav]").forEach(b => b.setAttribute("aria-current", b.dataset.nav === sezione ? "page" : "false"));
+  if (h.startsWith("arma/")) vistaArma(h.slice(5), tabSalvata());
+  else if (h.startsWith("gilda/")) vistaGilda(Number(h.slice(6)));
+  else if (h.startsWith("giocatore/")) vistaGiocatore(Number(h.slice(10)));
+  else if (h === "giocatori") vistaGiocatori();
+  else if (h === "meta") vistaMeta();
+  else if (h === "orari") vistaOrari();
+  else if (h === "gruppi") vistaGruppi();
+  else if (h === "gilde") vistaGilde();
+  else if (h === "scontro") vistaScontro();
+  else vistaLista();
+}
+function tabSalvata() { try { return sessionStorage.getItem("tab") || "pezzi"; } catch (e) { return "pezzi"; } }
+document.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => { location.hash = b.dataset.nav; if (!b.dataset.nav) mostra(); window.scrollTo(0, 0); });
+function collegaArmi(root = document) { root.querySelectorAll("[data-arma]").forEach(b => b.onclick = () => { location.hash = "arma/" + b.dataset.arma; }); }
+function collegaPezzi(root = document) { root.querySelectorAll("[data-pezzo]").forEach(b => b.onclick = e => { e.stopPropagation(); apriPezzo(b.dataset.pezzo); }); }
+
+// ---------------------------------------------------------------- blocchi riusabili
+function rigaArma(a, extra = "") {
+  return `<li><button class="voce" data-arma="${esc(a.base)}">${icona(a.base)}
+    <div class="cresci"><div class="nome">${esc(nome(a.base))}${stella(a.base)}</div><div class="small muted">${esc(ruolo(a.base) || "—")}${a.usi ? " · IP " + Math.round(a.ip / a.usi) : ""}${extra}</div></div>
+    <div class="num"><div>${a.usi}</div><div class="small ${winCls(a.vinte, a.usi)}">${pct(a.vinte, a.usi)}% vitt.</div></div></button></li>`;
+}
+function barre(oggetti, tot) {
+  return oggetti.map(([t, n]) => `<div class="r"><span>${esc(t)}</span><span class="num">${pct(n, tot)}% <span class="muted small">(${n})</span></span></div>
+    <div class="barra"><i style="width:${pct(n, tot)}%"></i></div>`).join("");
+}
+function bloccoBuild(lista, tot, nota) {
+  if (!lista.length) return `<div class="card vuoto">Nessuna build</div>`;
+  return `<div class="card"><ul class="lista">${lista.map((b, n) => {
+    const tier = [...b.tier.entries()].sort((x, y) => y[1] - x[1])[0][0];
+    return `<li class="build">
+      <div class="row between"><b>#${n + 1}${stella(b.pezzi[0])} · ${b.gioc.size} ${b.gioc.size === 1 ? "giocatore" : "giocatori"} <span class="muted small" style="font-weight:400">(${b.usi} ${b.usi === 1 ? "volta" : "volte"}${tot && pct(b.usi, tot) ? `, ${pct(b.usi, tot)}%` : ""})</span></b>
+        <span class="small"><span class="${winCls(b.vinte, b.usi)}">${pct(b.vinte, b.usi)}% vitt.</span>${pochi(b.usi)} · IP ${Math.round(b.ip / b.usi)} · arma ${tier}</span></div>
+      <div class="icone">${b.pezzi.map(x => x ? `<span data-pezzo="${esc(x)}" title="${esc(nome(x))}">${icona(x, "sm")}</span>` : "").join("")}</div>
+    </li>`;
+  }).join("")}</ul></div>${nota ? `<p class="nota">${nota}</p>` : ""}`;
+}
+function bloccoIP(fasce, titoloNota) {
+  const max = Math.max(1, ...fasce.map(f => f.n));
+  return `<div class="card kv">${fasce.map(f => `<div class="r"><span>${f.t}</span>
+      <span class="num">${f.n ? `<b class="${winCls(f.v, f.n)}">${pct(f.v, f.n)}%</b>` : "—"} <span class="muted small">(${f.n} scontri)</span></span></div>
+      <div class="barra"><i style="width:${f.n ? pct(f.v, f.n) : 0}%;opacity:${0.35 + 0.65 * f.n / max}"></i></div>`).join("")}</div>
+    <p class="nota">${titoloNota}</p>`;
+}
+function barraComp(conti) {
+  const tot = conti.reduce((a, b) => a + b, 0) || 1;
+  return `<div class="comp">${conti.map((n, i) => `<i style="width:${100 * n / tot}%;background:${CAT_COL[i]}"></i>`).join("")}</div>`;
+}
+const legenda = () => `<div class="leg">${CAT.map((c, i) => `<span><b style="background:${CAT_COL[i]}"></b>${c}</span>`).join("")}</div>`;
+
+// ---------------------------------------------------------------- Armi
+function vistaLista() {
+  const tutte = statArmi(filtra().righe);
+  const ruoli = [...new Set(tutte.map(a => ruolo(a.base)).filter(Boolean))].sort();
+  const q = st.cerca.trim().toLowerCase();
+  const armi = tutte.filter(a => (st.ruolo === "tutti" || (st.ruolo === "mie" ? MIE.has(a.base) : ruolo(a.base) === st.ruolo)) && (!q || nome(a.base).toLowerCase().includes(q)));
+  const ord = { usi: (a, b) => b.usi - a.usi, vittorie: (a, b) => pct(b.vinte, b.usi) - pct(a.vinte, a.usi) || b.usi - a.usi, ip: (a, b) => b.ip / b.usi - a.ip / a.usi };
+  armi.sort(ord[st.ordine] || ord.usi);
+  const tot = tutte.reduce((s, a) => s + a.usi, 0);
+  $("#vista").innerHTML = `
+    ${q ? "" : riquadroAscesa()}
+    <input class="cerca" id="cerca" type="search" placeholder="Cerca un'arma (es. Doppie spade)" value="${esc(st.cerca)}" autocomplete="off">
+    <div class="chips"><span class="filtri-label">Ruolo</span>
+      ${[["tutti", "Tutti"], ["mie", "★ Le mie"]].concat(ruoli.map(r => [r, r])).map(([v, t]) => `<button class="chip" data-ruolo="${esc(v)}" aria-pressed="${st.ruolo === v}">${esc(t)}</button>`).join("")}
+    </div>
+    <div class="row between" style="margin:8px 0">
+      <span class="small muted">${armi.length} armi · ${tot.toLocaleString("it-IT")} equipaggiamenti</span>
+      <select class="chip" id="ordine" aria-label="Ordina">
+        <option value="usi">Più usate</option><option value="vittorie">% vittorie</option><option value="ip">IP medio</option>
+      </select>
+    </div>
+    <div class="card"><ul class="lista">${armi.length ? armi.map(a => rigaArma(a)).join("") : `<li class="vuoto">${st.ruolo === "mie" ? "Nessuna arma segnata: apri un'arma e tocca ☆ Ho la spec" : "Nessuna arma con questi filtri"}</li>`}</ul></div>
+    ${st.ruolo === "mie" ? `<p class="nota">★ = armi per cui hai la spec nella Tavola del destino. Si segnano dalla pagina dell'arma e restano salvate su questo telefono. Le loro build più giocate sono in Meta.</p>` : ""}
+    <p class="nota">Dati dal killboard ufficiale (killer, partecipanti e vittime). % vittorie = quante volte chi usa l'arma era dalla parte di chi uccide.</p>`;
+  $("#ordine").value = st.ordine;
+  $("#ordine").onchange = e => { st.ordine = e.target.value; salva(); vistaLista(); };
+  const c = $("#cerca");
+  c.oninput = () => { st.cerca = c.value; const pos = c.selectionStart; vistaLista(); const n = $("#cerca"); n.focus(); n.setSelectionRange(pos, pos); };
+  document.querySelectorAll("[data-ruolo]").forEach(b => b.onclick = () => { st.ruolo = b.dataset.ruolo; salva(); vistaLista(); });
+  collegaArmi();
+}
+
+function vistaArma(base, tab) {
+  const s = statArma(base);
+  window.scrollTo(0, 0);
+  const tabs = [["pezzi", "Pezzi"], ["build", "Build"], ["matchup", "Match up"], ["ip", "IP"], ["skill", "Skill"]];
+  const srv = Object.entries(s.server).sort((a, b) => b[1] - a[1]).map(([k, n]) => [SERVER_NOMI[k] || k, n]);
+  if (!tabs.some(t => t[0] === tab)) tab = "pezzi";
+  $("#vista").innerHTML = `
+    <div class="row" style="margin:12px 0 0"><button class="indietro" id="indietro">‹ Indietro</button></div>
+    <div class="row" style="margin-top:12px">${icona(base, "big")}
+      <div class="cresci"><h1 style="font-size:21px">${esc(nome(base))}</h1><div class="muted">${esc(ruolo(base) || "Ruolo non indicato")}</div></div>
+      <button class="btn" id="spec" aria-pressed="${MIE.has(base)}" title="Segna se hai la spec per quest'arma nella Tavola del destino">${MIE.has(base) ? "★ Ho la spec" : "☆ Ho la spec"}</button></div>
+    ${s.usi ? `
+    <div class="tiles">
+      <div class="card tile"><b>${s.usi}</b><span>comparse${s.usi < POCHI ? " · pochi dati" : ""}</span></div>
+      <div class="card tile"><b class="${winCls(s.vinte, s.usi)}">${pct(s.vinte, s.usi)}%</b><span>vittorie</span></div>
+      <div class="card tile"><b>${Math.round(s.ip / s.usi)}</b><span>IP medio</span></div>
+    </div>
+    <div class="split" style="margin-top:8px">
+      <div class="card kv"><div class="slot-tit" style="padding:0">Server</div>${barre(srv, s.usi)}</div>
+      <div class="card kv"><div class="slot-tit" style="padding:0">Contesto</div>${barre(CTX.map((c, i) => [c, s.ctx[i]]), s.usi)}</div>
+    </div>
+    <div class="tabs" role="tablist">${tabs.map(([k, t]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${tab === k}">${t}</button>`).join("")}</div>
+    <div id="pannello"></div>` : `<div class="card vuoto" style="margin-top:12px">Nessuna comparsa con questi filtri. Prova "Tutti" o un periodo più lungo.</div>
+    <h2>Skill</h2><div id="pannello"></div>`}`;
+  $("#indietro").onclick = () => { if (history.length > 1) history.back(); else location.hash = ""; };
+  $("#spec").onclick = () => { if (MIE.has(base)) MIE.delete(base); else MIE.add(base); salvaMie(); vistaArma(base, tabSalvata()); };
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
+    try { sessionStorage.setItem("tab", b.dataset.tab); } catch (e) {}
+    document.querySelectorAll("[data-tab]").forEach(x => x.setAttribute("aria-selected", x === b));
+    pannello(base, s, b.dataset.tab);
+  });
+  pannello(base, s, s.usi ? tab : "skill");
+}
+
+function pannello(base, s, tab) {
+  const p = $("#pannello");
+  if (tab === "pezzi") {
+    p.innerHTML = `<div class="card">${SLOT.slice(1).map((nomeSlot, j) => {
+      const top = [...s.pezzi[j + 1].entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 5);
+      if (!top.length) return "";
+      return `<div class="slot-tit">${nomeSlot}</div><ul class="lista">${top.map(([b, x]) => `<li><button class="voce" data-pezzo="${esc(b)}">
+        ${icona(b, "sm")}<div class="cresci"><div class="nome" style="font-weight:500">${esc(nome(b))}</div><div class="barra"><i style="width:${pct(x.n, s.usi)}%"></i></div></div>
+        <div class="num"><div>${pct(x.n, s.usi)}%</div><div class="small ${winCls(x.v, x.n)}">${pct(x.v, x.n)}% vitt.</div></div></button></li>`).join("")}</ul>`;
+    }).join("")}</div><p class="nota">In alto: quanto è usato il pezzo con quest'arma. Sotto: % vittorie di chi lo usa. Tocca un pezzo per vedere cosa fa.</p>`;
+  } else if (tab === "build") {
+    p.innerHTML = bloccoBuild(s.build.slice(0, 10), s.usi, "Build = stessa combinazione di pezzi (il tier può cambiare). In ordine di giocatori diversi che la usano, poi di volte. Tocca un'icona per vedere il pezzo.");
+  } else if (tab === "matchup") {
+    const ok = s.matchup.filter(m => m.n >= st.minScontri);
+    const fav = ok.filter(m => pct(m.vinte, m.n) > 50).sort((a, b) => pct(b.vinte, b.n) - pct(a.vinte, a.n) || b.n - a.n);
+    const sfav = ok.filter(m => pct(m.vinte, m.n) < 50).sort((a, b) => pct(a.vinte, a.n) - pct(b.vinte, b.n) || b.n - a.n);
+    const pari = ok.filter(m => pct(m.vinte, m.n) === 50);
+    const riga = m => `<li><button class="voce" data-arma="${esc(m.base)}">${icona(m.base, "sm")}
+      <div class="cresci"><div class="nome" style="font-weight:500">${esc(nome(m.base))}</div><div class="small muted">${m.n} scontri · ${m.vinte} vinti${pochi(m.n)}</div></div>
+      <div class="num ${winCls(m.vinte, m.n)}"><b>${pct(m.vinte, m.n)}%</b></div></button></li>`;
+    const blocco = (t, L) => `<h2>${t} <span class="muted small">(${L.length})</span></h2><div class="card"><ul class="lista">${L.length ? L.map(riga).join("") : `<li class="vuoto">Nessuno</li>`}</ul></div>`;
+    p.innerHTML = `<div class="chips" style="margin-top:8px"><span class="filtri-label">Min. scontri</span>
+      ${[3, 5, 10].map(v => `<button class="chip" data-min="${v}" aria-pressed="${st.minScontri === v}">${v}</button>`).join("")}</div>
+      ${blocco("Favorevoli", fav)}${blocco("Sfavorevoli", sfav)}${pari.length ? blocco("Pari", pari) : ""}
+      <p class="nota">Solo scontri 1 contro 1 con meno di ${MATCH_IP} IP di differenza. Il filtro Contesto qui non conta. "Pochi dati" = meno di ${POCHI} scontri: con così pochi casi un 100% o uno 0% può essere fortuna. Tocca un'arma per aprirla.</p>`;
+    p.querySelectorAll("[data-min]").forEach(b => b.onclick = () => { st.minScontri = Number(b.dataset.min); salva(); pannello(base, s, "matchup"); });
+    collegaArmi(p);
+  } else if (tab === "ip") {
+    p.innerHTML = `<h2>% vittorie per differenza di IP</h2>` + bloccoIP(s.ipFasce,
+      "Scontri 1 contro 1 contro armi diverse. Differenza = IP di chi usa quest'arma meno IP dell'avversario: +150 vuol dire che aveva 150 IP in più.");
+  } else {
+    p.innerHTML = schedaSkill(base);
+  }
+  collegaPezzi(p);
+}
+
+function schedaSkill(base) {
+  const g = G[base];
+  if (!g || !g.skill.length) return `<div class="card vuoto">${g && g.desc ? esc(g.desc) : "Nessuna skill nei file di gioco per questo pezzo."}</div>`;
+  return `<div class="card"><ul class="lista">${g.skill.map(k => `<li class="skill"><span class="tasto">${esc(k.t)}</span><b>${esc(k.n)}</b><p>${esc(k.d)}</p></li>`).join("")}</ul></div>
+    <p class="nota">Tutte le skill che il pezzo può avere, dai file di gioco. X = valore che dipende da tier e livello. Il killboard non dice quali skill ha scelto il giocatore.</p>`;
+}
+
+// ---------------------------------------------------------------- Meta
+// crescita: quota d'uso negli ultimi 3 giorni contro i giorni prima (fino a 14), stessi filtri server e contesto
+function crescita() {
+  const f = filtra();
+  if (f.crescita) return f.crescita;
+  const taglio = f.ultimo - 3 * 1440;
+  const rec = new Map(), prima = new Map();
+  let nRec = 0, nPrima = 0;
+  for (const r of D.righe) {
+    if (!f.okEvNoPer[r[0]] || r[3] < 0) continue;
+    const b = baseArma(r);
+    if (D.eventi[r[0]][1] >= taglio) { rec.set(b, (rec.get(b) || 0) + 1); nRec++; }
+    else { prima.set(b, (prima.get(b) || 0) + 1); nPrima++; }
+  }
+  const variaz = [...new Set([...rec.keys(), ...prima.keys()])].map(b => {
+    const a = rec.get(b) || 0, p = prima.get(b) || 0;
+    return { base: b, a, p, qa: nRec ? 100 * a / nRec : 0, qp: nPrima ? 100 * p / nPrima : 0 };
+  }).filter(x => x.a + x.p >= 20).map(x => ({ ...x, d: x.qa - x.qp }));
+  return f.crescita = { variaz, nRec, nPrima };
+}
+const rigaCrescita = x => `<li><button class="voce" data-arma="${esc(x.base)}">${icona(x.base, "sm")}
+      <div class="cresci"><div class="nome" style="font-weight:500">${esc(nome(x.base))}${stella(x.base)}</div><div class="small muted">${x.qp.toFixed(1)}% → ${x.qa.toFixed(1)}% delle comparse</div></div>
+      <div class="num ${x.d > 0 ? "su" : "giu"}"><b>${x.d > 0 ? "▲" : "▼"} ${Math.abs(x.d).toFixed(1)}</b></div></button></li>`;
+// riquadro della home: 3 armi salite di almeno 1 punto, solo se ci sono abbastanza dati in entrambi i periodi
+function riquadroAscesa() {
+  const { variaz, nRec, nPrima } = crescita();
+  if (nRec < 200 || nPrima < 200) return "";
+  const su = variaz.filter(x => x.d >= 1).sort((a, b) => b.d - a.d).slice(0, 3);
+  if (!su.length) return "";
+  return `<h2>▲ Armi in ascesa <span class="muted small">(ultimi 3 giorni)</span></h2>
+    <div class="card"><ul class="lista">${su.map(rigaCrescita).join("")}</ul></div>
+    <p class="nota">Quota sulle comparse negli ultimi 3 giorni contro i giorni prima (server e contesto dai filtri). Altre in Meta.</p>`;
+}
+
+function vistaMeta() {
+  const f = filtra();
+  const { variaz } = crescita();
+  const su = variaz.filter(x => x.d > 0).sort((a, b) => b.d - a.d).slice(0, 8);
+  const giu = variaz.filter(x => x.d < 0).sort((a, b) => a.d - b.d).slice(0, 8);
+  const lista = (L) => `<div class="card"><ul class="lista">${L.length ? L.map(rigaCrescita).join("") : `<li class="vuoto">Dati insufficienti</li>`}</ul></div>`;
+  // ruoli più giocati
+  const cat = [0, 0, 0, 0], catV = [0, 0, 0, 0];
+  for (const r of f.righe) { const c = categoria(baseArma(r)); cat[c]++; catV[c] += r[1] !== 2; }
+  const totC = cat.reduce((a, b) => a + b, 0);
+  // IP globale
+  const fasce = FASCE_IP.map(([da, a, t]) => ({ t, n: 0, v: 0, da, a }));
+  for (const { k, v } of duelli()) {
+    if (baseArma(k) === baseArma(v)) continue;
+    const d = k[2] - v[2];   // dal punto di vista del killer: vince lui
+    for (const [dd, w] of [[d, 1], [-d, 0]]) { const x = fasce.find(z => dd >= z.da && dd < z.a); x.n++; x.v += w; }
+  }
+  const top = statBuild(f.righe).slice(0, 5);
+  const mieRighe = f.righe.filter(r => MIE.has(baseArma(r)));
+  const mieBuild = statBuild(mieRighe).slice(0, 5);
+  $("#vista").innerHTML = `
+    <h2>★ Build per le mie spec</h2>
+    ${MIE.size ? bloccoBuild(mieBuild, mieRighe.length, `Le build più giocate con le armi che hai segnato (${[...MIE].map(nome).join(", ")}). Per cambiarle: apri un'arma e tocca ☆ Ho la spec.`)
+      : `<div class="card vuoto">Nessuna arma segnata. Apri un'arma e tocca ☆ Ho la spec.</div>`}
+    <h2>Armi in crescita</h2>${lista(su)}
+    <h2>Armi in calo</h2>${lista(giu)}
+    <p class="nota">Quota sulle comparse: ultimi 3 giorni contro i giorni prima. Contano server e contesto, non il periodo. Solo armi con almeno 20 comparse.</p>
+    <h2>Ruoli</h2>
+    <div class="card kv">${barraComp(cat)}${legenda()}
+      ${CAT.map((c, i) => `<div class="r"><span>${c}</span><span class="num">${pct(cat[i], totC)}% · <span class="${winCls(catV[i], cat[i])}">${pct(catV[i], cat[i])}% vitt.</span></span></div>`).join("")}</div>
+    <h2>Quanto conta l'IP</h2>
+    ${bloccoIP(fasce, "Tutti gli scontri 1 contro 1. % vittorie di chi ha quella differenza di IP rispetto all'avversario. Se la riga +150 è molto sopra il 50%, l'IP decide; se è vicina al 50%, conta di più la build.")}
+    <h2>Build complete più usate</h2>${bloccoBuild(top, 0, "Con i filtri in alto. Tocca un'icona per vedere il pezzo.")}`;
+  collegaArmi(); collegaPezzi();
+}
+
+// ---------------------------------------------------------------- Traffico
+const FMT_GIORNO = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", hour: "numeric", hourCycle: "h23" });
+const GIORNI_SETT = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
+const ZONE_IT = { OPEN_WORLD: "Open world", HELLGATE: "Hellgate", CORRUPTED_DUNGEON: "Corrotte", ARENA: "Arena", CRYSTAL_LEAGUE: "Crystal" };
+const nomeZona = z => ZONE_IT[z] || String(z).replace(/_/g, " ").toLowerCase().replace(/^./, c => c.toUpperCase());
+let TEMPI = null;   // per evento: {h, giorno "2026-11-26", gs 0=lun}
+function tempi() {
+  if (TEMPI) return TEMPI;
+  const memo = new Map();
+  TEMPI = D.eventi.map(e => {
+    const ora_ = Math.floor(e[1] / 60);
+    let x = memo.get(ora_);
+    if (!x) {
+      const p = Object.fromEntries(FMT_GIORNO.formatToParts(new Date(ora_ * 3600000)).map(q => [q.type, q.value]));
+      x = { h: Number(p.hour), giorno: `${p.year}-${p.month}-${p.day}`, gs: GIORNI_SETT.indexOf(p.weekday.slice(0, 3).toLowerCase()) };
+      memo.set(ora_, x);
+    }
+    return x;
+  });
+  return TEMPI;
+}
+
+function colonne24(valori, sel, fmt) {
+  const max = Math.max(1, ...valori);
+  return `<div class="ore">${valori.map((n, h) => `<div title="${h}:00 · ${fmt(n)}"><i class="${sel && sel(h) ? "sel" : ""}" style="height:${100 * n / max}%"></i></div>`).join("")}</div>
+    <div class="ore-lab">${valori.map((_, h) => `<span>${h % 3 === 0 ? h : ""}</span>`).join("")}</div>`;
+}
+
+function vistaOrari() {
+  const f = filtra();
+  const T = tempi();
+  const zone = D.zone || [];
+  if (st.zona !== "tutte" && !zone.includes(st.zona)) st.zona = "tutte";
+  const zi = zone.indexOf(st.zona);
+  const okZ = i => st.zona === "tutte" || D.eventi[i][5] === zi;
+  // Il PC non vede tutto: a ogni raccolta prende le uccisioni piu' recenti, che coprono un tratto di tempo.
+  // Per ogni server divido gli eventi in "tratti coperti" (buchi > 15 min = non coperto) e misuro il ritmo:
+  // uccisioni / durata del tratto. Cosi' l'ora in cui gira la raccolta non falsa il traffico.
+  const perSrv = new Map();
+  D.eventi.forEach((e, i) => { if (f.okEvNoCtx[i]) { let l = perSrv.get(e[0]); if (!l) perSrv.set(e[0], l = []); l.push(i); } });
+  const tratti = [];
+  for (const [srv, lista] of perSrv) {
+    lista.sort((x, y) => D.eventi[x][1] - D.eventi[y][1]);
+    let cur = [lista[0]];
+    const chiudi = () => { const durata = D.eventi[cur[cur.length - 1]][1] - D.eventi[cur[0]][1]; if (durata >= 10) tratti.push({ srv, ev: cur, min: durata }); };
+    for (const i of lista.slice(1)) {
+      if (D.eventi[i][1] - D.eventi[cur[cur.length - 1]][1] > 15) { chiudi(); cur = [i]; } else cur.push(i);
+    }
+    chiudi();
+  }
+  const giocDi = new Map();
+  for (const r of D.righe) if (r[13] !== undefined) { let g = giocDi.get(r[0]); if (!g) giocDi.set(r[0], g = []); g.push(r[13]); }
+  // campioni: per server, per giorno+ora, ritmo di uccisioni e giocatori all'ora
+  const camp = [];
+  for (const t of tratti) {
+    const perOra = new Map();
+    for (const i of t.ev) {
+      const k = `${T[i].giorno}|${T[i].h}`;
+      let x = perOra.get(k);
+      if (!x) perOra.set(k, x = { h: T[i].h, gs: T[i].gs, giorno: T[i].giorno, t0: D.eventi[i][1], t1: D.eventi[i][1], kill: 0, gioc: new Set() });
+      x.t1 = D.eventi[i][1];
+      if (f.okEv[i] && okZ(i)) { x.kill++; (giocDi.get(i) || []).forEach(g => x.gioc.add(g)); }
+    }
+    for (const x of perOra.values()) {
+      const min = Math.max(x.t1 - x.t0, 0);
+      if (min < 10) continue;   // troppo poco tempo coperto in quest'ora
+      camp.push({ srv: t.srv, h: x.h, gs: x.gs, giorno: x.giorno, min, kill: 60 * x.kill / min, gioc: 60 * x.gioc.size / min });
+    }
+  }
+  // media per server, poi somma dei server (con "Tutti i server")
+  const media = (filtro, campo) => {
+    const out = Array(24).fill(0);
+    const srvs = [...new Set(camp.map(c => c.srv))];
+    for (const sv of srvs) {
+      const v = Array(24).fill(0), n = Array(24).fill(0);
+      for (const c of camp) if (c.srv === sv && filtro(c)) { v[c.h] += campo(c) * c.min; n[c.h] += c.min; }
+      v.forEach((a, h) => { if (n[h]) out[h] += a / n[h]; });
+    }
+    return out;
+  };
+  const killOra = media(() => true, c => c.kill);
+  const giocOra = media(() => true, c => c.gioc);
+  const nOra = Array(24).fill(0);
+  for (const c of camp) nOra[c.h] += c.min;
+  const [da, a, tFascia] = FASCE_ORA[st.fascia] || FASCE_ORA[3];
+  const griglia = GIORNI_SETT.map((_, g) => media(c => c.gs === g, c => c.kill));
+  const maxG = Math.max(1, ...griglia.flat());
+  const giorniVisti = new Set(camp.map(c => c.giorno));
+  // per giorno: media del ritmo per server, poi somma dei server
+  const perGiorno = new Map();
+  for (const c of camp) {
+    let g = perGiorno.get(c.giorno);
+    if (!g) perGiorno.set(c.giorno, g = new Map());
+    let x = g.get(c.srv);
+    if (!x) g.set(c.srv, x = { kill: 0, gioc: 0, min: 0 });
+    x.kill += c.kill * c.min; x.gioc += c.gioc * c.min; x.min += c.min;
+  }
+  const giorni = [...perGiorno.entries()].sort((p, q) => p[0] < q[0] ? -1 : 1).map(([g, m]) => {
+    const v = [...m.values()];
+    return [g, { kill: v.reduce((a2, x) => a2 + x.kill / x.min, 0), gioc: v.reduce((a2, x) => a2 + x.gioc / x.min, 0), ore: Math.max(...v.map(x => x.min)) / 60 }];
+  });
+  const maxGg = Math.max(1, ...giorni.map(([, g]) => g.kill));
+  // tipo di scontro per ora (il filtro Contesto qui non conta)
+  const tipo = Array.from({ length: 24 }, () => [0, 0, 0]);
+  D.eventi.forEach((e, i) => { if (f.okEvNoCtx[i] && okZ(i)) tipo[T[i].h][e[2]]++; });
+  // ore piu' tranquille: solo ore coperte per almeno 30 minuti
+  const tranquille = killOra.map((v, h) => [h, v]).filter(([h]) => nOra[h] >= 30).sort((p, q) => p[1] - q[1]).slice(0, 3);
+  // server
+  const perServer = new Map();
+  D.righe.forEach(r => {
+    if (!f.okEv[r[0]] || !okZ(r[0])) return;
+    const s = D.eventi[r[0]][0];
+    let x = perServer.get(s);
+    if (!x) perServer.set(s, x = { gioc: new Set(), ev: new Set() });
+    x.ev.add(r[0]); if (r[13] !== undefined) x.gioc.add(r[13]);
+  });
+  // zone
+  const perZona = new Map();
+  D.eventi.forEach((e, i) => { if (f.okEv[i]) perZona.set(e[5], (perZona.get(e[5]) || 0) + 1); });
+  const totZ = [...perZona.values()].reduce((p, q) => p + q, 0);
+  // armi nella fascia scelta
+  const righeF = f.righe.filter(r => okZ(r[0]) && T[r[0]].h >= da && T[r[0]].h < a);
+  const armi = statArmi(righeF).sort((x, y) => y.usi - x.usi).slice(0, 10);
+  const CTX_COL = ["#4f7cc9", "#d9822b", "#a067c8"];
+  const tipoMax = 1;
+  const coperte = giocOra.filter(Boolean);
+  const giocMedio = coperte.reduce((p, q) => p + q, 0) / Math.max(1, coperte.length);
+  const oreCoperte = nOra.filter(m => m >= 10).length;
+  $("#vista").innerHTML = `
+    ${zone.length > 1 ? `<div class="chips" style="margin-top:8px"><span class="filtri-label">Zona</span>
+      ${[["tutte", "Tutte"]].concat(zone.map(z => [z, nomeZona(z)])).map(([v, t]) => `<button class="chip" data-zona="${esc(v)}" aria-pressed="${st.zona === v}">${esc(t)}</button>`).join("")}</div>` : ""}
+    <h2>Giocatori per ora <span class="muted small">(media, ora italiana)</span></h2>
+    <div class="card">${colonne24(giocOra, h => h >= da && h < a, n => Math.round(n) + " giocatori")}</div>
+    <p class="nota">Giocatori diversi che compaiono nel killboard in un'ora: in media ${Math.round(giocMedio).toLocaleString("it-IT")}, picco alle ${giocOra.indexOf(Math.max(...giocOra))}:00. Ore coperte finora: ${oreCoperte} su 24 (le barre vuote sono ore senza dati, non ore vuote).</p>
+    <h2>Uccisioni per ora</h2>
+    <div class="card">${colonne24(killOra, h => h >= da && h < a, n => Math.round(n) + " uccisioni")}</div>
+    <h2>Ore più tranquille</h2>
+    <div class="card kv">${tranquille.length ? tranquille.map(([h, v]) => `<div class="r"><span>${h}:00-${h + 1}:00</span><span class="num">${Math.round(v)} uccisioni/ora</span></div>`).join("")
+      : "Servono più ore di raccolta."}</div>
+    <h2>Tipo di scontro per ora <span class="muted small">(quota)</span></h2>
+    <div class="card"><div class="ore">${tipo.map(t => { const tot = t[0] + t[1] + t[2]; return `<div title="Solo ${t[0]} · Gruppo ${t[1]} · ZvZ ${t[2]}">${[2, 1, 0].map(c => `<i style="height:${tot ? 100 * t[c] / tot : 0}%;background:${CTX_COL[c]};border-radius:0"></i>`).join("")}</div>`; }).join("")}</div>
+      <div class="ore-lab">${tipo.map((_, h) => `<span>${h % 3 === 0 ? h : ""}</span>`).join("")}</div></div>
+    <div class="leg">${CTX.map((c, i) => `<span><b style="background:${CTX_COL[i]}"></b>${c}</span>`).join("")}</div>
+    <h2>Settimana × ora <span class="muted small">(uccisioni medie)</span></h2>
+    <div class="card" style="padding:10px 12px">
+      ${griglia.map((riga, g) => `<div class="row" style="gap:2px;margin:2px 0"><span class="small muted" style="width:28px">${GIORNI_SETT[g]}</span>
+        ${riga.map((v, h) => `<i title="${GIORNI_SETT[g]} ${h}:00 · ${Math.round(v)}" style="flex:1;height:14px;border-radius:2px;background:${v ? "var(--accent)" : "var(--card2)"};opacity:${v ? 0.15 + 0.85 * v / maxG : 1}"></i>`).join("")}</div>`).join("")}
+      <div class="ore-lab" style="padding:4px 0 0 30px">${Array.from({ length: 24 }, (_, h) => `<span>${h % 6 === 0 ? h : ""}</span>`).join("")}</div></div>
+    <p class="nota">${giorniVisti.size < 7 ? `Per ora ${giorniVisti.size} ${giorniVisti.size === 1 ? "giorno" : "giorni"} di dati: la griglia diventa affidabile dopo almeno 7 giorni.` : "Più scuro = più uccisioni. Grigio = nessun dato (PC spento)."}</p>
+    <h2>Andamento per giorno</h2>
+    <div class="card kv">${giorni.map(([g, x]) => `<div class="r" style="flex-wrap:wrap;gap:0 8px"><b>${g.slice(8)}/${g.slice(5, 7)}</b>
+      <span class="num small">${Math.round(x.kill).toLocaleString("it-IT")} uccisioni/ora · ${Math.round(x.gioc).toLocaleString("it-IT")} giocatori/ora <span class="muted small">(${x.ore.toFixed(1).replace(".", ",")} ore coperte)</span></span></div>
+      <div class="barra"><i style="width:${100 * x.kill / maxGg}%"></i></div>`).join("")}</div>
+    <p class="nota">Ritmo misurato solo nei tratti di tempo che il PC ha coperto, così i giorni col PC spento restano confrontabili.</p>
+    ${st.server === "tutti" ? `<h2>Server</h2><div class="card kv">${[...perServer.entries()].sort((p, q) => q[1].gioc.size - p[1].gioc.size).map(([sv, x]) =>
+      `<div class="r"><span>${esc(SERVER_NOMI[D.info.server[sv]] || "?")}</span><span class="num">${x.gioc.size.toLocaleString("it-IT")} giocatori · ${x.ev.size.toLocaleString("it-IT")} uccisioni</span></div>`).join("")}</div>` : ""}
+    <h2>Tipo di zona</h2>
+    <div class="card kv">${totZ ? [...perZona.entries()].sort((p, q) => q[1] - p[1]).map(([z, n]) => `<div class="r"><span>${z >= 0 ? esc(nomeZona(zone[z])) : "Non salvata"}</span><span class="num">${pct(n, totZ)}% <span class="muted small">(${n})</span></span></div>`).join("") : "Nessun dato"}</div>
+    <p class="nota">"Non salvata" = uccisioni raccolte prima che il PC salvasse la zona (fino al 25/11). Il killboard pubblico non dice la mappa e, da quanto risulta, non pubblica le uccisioni in dungeon corrotti, hellgate e arena: tutte quelle con la zona salvata sono in open world (Depths comprese). Per questo non c'è un filtro dungeon / open world.</p>
+    <div class="chips" style="margin-top:12px">${FASCE_ORA.map(([, , t], i) => `<button class="chip" data-fascia="${i}" aria-pressed="${st.fascia === i}">${t}</button>`).join("")}</div>
+    <h2>Armi più giocate · ${tFascia}</h2>
+    <div class="card"><ul class="lista">${armi.length ? armi.map(x => rigaArma(x)).join("") : `<li class="vuoto">Nessun dato</li>`}</ul></div>
+    <p class="nota">Ritmo calcolato sui tratti di tempo coperti dalle raccolte: non dipende da quando gira il PC. Il killboard pubblico non mostra tutte le uccisioni, quindi i numeri servono a confrontare le ore tra loro, non come conteggio esatto.</p>`;
+  document.querySelectorAll("[data-fascia]").forEach(b => b.onclick = () => { st.fascia = Number(b.dataset.fascia); salva(); vistaOrari(); });
+  document.querySelectorAll("[data-zona]").forEach(b => b.onclick = () => { st.zona = b.dataset.zona; vistaOrari(); });
+  collegaArmi();
+}
+
+// ---------------------------------------------------------------- Gruppi e ZvZ
+function vistaGruppi() {
+  const f = filtra();
+  // gruppi: per ogni uccisione in contesto Gruppo, i ruoli di killer + partecipanti
+  const perEv = new Map();
+  for (const r of D.righe) {
+    if (!f.okEvNoCtx[r[0]] || D.eventi[r[0]][2] !== 1 || r[1] === 2 || r[3] < 0) continue;
+    let c = perEv.get(r[0]);
+    if (!c) perEv.set(r[0], c = [0, 0, 0, 0]);
+    c[categoria(baseArma(r))]++;
+  }
+  const comp = new Map();
+  for (const c of perEv.values()) {
+    const k = c.join("-");
+    const x = comp.get(k) || { c, n: 0 };
+    x.n++; comp.set(k, x);
+  }
+  const topComp = [...comp.values()].sort((a, b) => b.n - a.n).slice(0, 10);
+  const nGr = perEv.size;
+  const nomeComp = c => c.map((n, i) => n ? `${n} ${CAT[i]}` : "").filter(Boolean).join(" · ");
+  // ZvZ: per battaglia, giocatori raggruppati per alleanza (o gilda); vince chi fa più uccisioni
+  const batt = new Map();
+  for (const r of D.righe) {
+    const ev = D.eventi[r[0]];
+    if (!f.okEvNoCtx[r[0]] || ev[2] !== 2 || ev[4] < 0 || r[3] < 0) continue;
+    let b = batt.get(ev[4]);
+    if (!b) batt.set(ev[4], b = { tutti: [0, 0, 0, 0], schieramenti: new Map() });
+    const c = categoria(baseArma(r));
+    b.tutti[c]++;
+    const lato = r[12] >= 0 ? r[12] : r[11];
+    if (lato < 0) continue;
+    let s = b.schieramenti.get(lato);
+    if (!s) b.schieramenti.set(lato, s = { comp: [0, 0, 0, 0], kill: 0, morti: 0 });
+    s.comp[c]++;
+    if (r[1] === 0) s.kill++;
+    if (r[1] === 2) s.morti++;
+  }
+  const media = [0, 0, 0, 0], vinc = [0, 0, 0, 0], perd = [0, 0, 0, 0];
+  let nBatt = 0, nConfronti = 0;
+  for (const b of batt.values()) {
+    const t = b.tutti.reduce((x, y) => x + y, 0);
+    if (!t) continue;
+    nBatt++;
+    b.tutti.forEach((n, i) => media[i] += n / t);
+    const sch = [...b.schieramenti.values()].filter(s => s.kill + s.morti >= 3).sort((x, y) => (y.kill - y.morti) - (x.kill - x.morti));
+    if (sch.length < 2) continue;
+    nConfronti++;
+    const norm = (dest, c) => { const tt = c.reduce((x, y) => x + y, 0) || 1; c.forEach((n, i) => dest[i] += n / tt); };
+    norm(vinc, sch[0].comp); norm(perd, sch[sch.length - 1].comp);
+  }
+  const p = (arr, n) => arr.map(x => n ? Math.round(100 * x / n) : 0);
+  const riga = (t, arr) => `<div style="margin-top:10px"><div class="row between"><b>${t}</b><span class="small muted">${arr.map((x, i) => `${CAT[i][0]} ${x}%`).join(" · ")}</span></div>${barraComp(arr)}</div>`;
+  $("#vista").innerHTML = `
+    <h2>Gruppi: composizioni che uccidono di più</h2>
+    <div class="card"><ul class="lista">${topComp.length ? topComp.map(x => `<li class="build">
+        <div class="row between"><b>${esc(nomeComp(x.c))}</b><span class="num">${x.n} uccisioni <span class="muted small">(${pct(x.n, nGr)}%)</span></span></div>${barraComp(x.c)}</li>`).join("")
+      : `<li class="vuoto">Nessuna uccisione di gruppo con questi filtri</li>`}</ul></div>
+    ${legenda()}
+    <p class="nota">Chi ha ucciso (killer + chi ha aiutato), contesto Gruppo. Ruoli da Tabella_Armi. Il filtro Contesto qui non conta.</p>
+    <h2>ZvZ: composizione</h2>
+    <div class="card kv">
+      ${nBatt ? riga(`Media di ${nBatt} battaglie`, p(media, nBatt)) : `<div class="vuoto">Nessuna battaglia ZvZ con questi filtri</div>`}
+      ${nConfronti ? riga("Schieramento con più uccisioni", p(vinc, nConfronti)) + riga("Schieramento con meno uccisioni", p(perd, nConfronti)) : ""}
+    </div>
+    ${legenda()}
+    <p class="nota">${haGilde() && nConfronti ? `Schieramento = alleanza (o gilda se non ha alleanza). Confronto su ${nConfronti} battaglie: è una stima, il killboard non dice chi ha vinto la battaglia.` : "Il confronto tra schieramenti comparirà quando la raccolta avrà salvato gilde e alleanze."}</p>`;
+}
+
+// ---------------------------------------------------------------- Scontro
+// % vittorie di chi ha una certa differenza di IP negli 1v1 (fasce da 50), simmetrica per costruzione
+function curvaIP() {
+  const f = filtra();
+  if (f.curva) return f.curva;
+  const passo = 50, lim = 400, fasce = new Map();
+  for (const { k, v } of duelli()) {
+    if (baseArma(k) === baseArma(v)) continue;
+    const d = k[2] - v[2];
+    for (const [dd, w] of [[d, 1], [-d, 0]]) {
+      const c = Math.max(-lim, Math.min(lim, Math.round(dd / passo) * passo));
+      const x = fasces(fasce, c); x.n++; x.v += w;
+    }
+  }
+  return f.curva = fasce;
+}
+function fasces(m, c) { let x = m.get(c); if (!x) m.set(c, x = { n: 0, v: 0 }); return x; }
+// correzione in punti % per una differenza di IP, letta dalla curva (0 se pochi dati)
+function correzioneIP(d) {
+  const c = Math.max(-400, Math.min(400, Math.round(d / 50) * 50));
+  const x = curvaIP().get(c);
+  return x && x.n >= 30 ? 100 * x.v / x.n - 50 : 0;
+}
+// prima differenza di IP (a sfavore) dove si vince meno del 45%
+function sogliaIP() {
+  const cv = curvaIP();
+  for (let d = -50; d >= -400; d -= 50) {
+    const x = cv.get(d);
+    if (x && x.n >= 30 && 100 * x.v / x.n < 45) return { d, p: Math.round(100 * x.v / x.n), n: x.n };
+  }
+  return null;
+}
+// stima: risultati degli 1v1 tra le due armi "ripuliti" dall'effetto dell'IP, poi si aggiunge l'effetto dell'IP di questo scontro
+function stimaScontro(a, b, ipA, ipB) {
+  let n = 0, w = 0, res = 0, nA = 0, resA = 0;
+  for (const { k, v } of duelli()) {
+    const bk = baseArma(k), bv = baseArma(v);
+    if (bk === bv || (bk !== a && bv !== a)) continue;
+    const mio = bk === a ? k : v, altro = bk === a ? v : k;
+    const vinto = bk === a ? 1 : 0;
+    const atteso = 0.5 + correzioneIP(mio[2] - altro[2]) / 100;   // quanto "doveva" vincere solo per l'IP
+    nA++; resA += vinto - atteso;
+    if (baseArma(altro) === b) { n++; w += vinto; res += vinto - atteso; }
+  }
+  const generale = nA ? 50 + 100 * resA / nA : 50;
+  const K = 5;   // peso del dato generale: con pochi scontri conta di più
+  const base = (100 * (res + n * 0.5) + K * generale) / (n + K);
+  const d = ipA && ipB ? ipA - ipB : 0;
+  const corr = d ? correzioneIP(d) : 0;
+  const p = Math.max(3, Math.min(97, base + corr));
+  const verdetto = p >= 58 ? ["Ingaggia", "win"] : p < 45 ? ["Evita", "lose"] : ["Equilibrato", ""];
+  const aff = n >= 20 ? "alta" : n >= 5 ? "media" : "bassa";
+  return { p: Math.round(p), base: Math.round(base), n, w, generale: Math.round(generale), nA, d, corr: Math.round(corr), verdetto, aff };
+}
+// pezzi che vincono di più, con l'arma a, negli 1v1 contro l'arma b (o contro tutti se pochi dati)
+function pezziControllo(a, b) {
+  const per = SLOT.map(() => new Map());
+  let scontri = 0;
+  for (const { k, v } of duelli()) {
+    const bk = baseArma(k), bv = baseArma(v);
+    const mio = bk === a ? k : bv === a ? v : null;
+    if (!mio || bk === bv || (b && baseArma(mio === k ? v : k) !== b)) continue;
+    scontri++;
+    for (let i = 1; i < 8; i++) {
+      if (mio[3 + i] < 0) continue;
+      const x = fasces(per[i], IT[mio[3 + i]].base); x.n++; x.v += mio === k;
+    }
+  }
+  return { per, scontri };
+}
+
+// ---- La mia build: % vittorie di ogni pezzo con la tua arma, "a pari IP"
+// pendenza b della retta vittoria~IP (minimi quadrati sulle comparse dell'arma), poi per ogni pezzo
+// si toglie b * (IP medio di chi porta il pezzo - IP medio dell'arma)
+const SLOT_MIA = [1, 2, 3, 4, 5, 7, 6];   // offhand, testa, armatura, scarpe, mantello, pozione, cibo
+function pezziPariIP(base) {
+  const righe = filtra().righe.filter(r => baseArma(r) === base);
+  const n = righe.length;
+  if (!n) return null;
+  const xm = righe.reduce((s, r) => s + r[2], 0) / n;
+  const ym = righe.reduce((s, r) => s + (r[1] !== 2 ? 1 : 0), 0) / n;
+  let sxy = 0, sxx = 0;
+  for (const r of righe) { const dx = r[2] - xm; sxy += dx * ((r[1] !== 2 ? 1 : 0) - ym); sxx += dx * dx; }
+  const b = sxx ? sxy / sxx : 0;
+  const per = SLOT.map(() => new Map());
+  for (const r of righe) {
+    for (let i = 1; i < 8; i++) {
+      const it = r[3 + i];
+      if (it < 0) continue;
+      const x = fasces(per[i], IT[it].base); x.n++; x.v += r[1] !== 2; x.ip = (x.ip || 0) + r[2];
+    }
+  }
+  for (const m of per) for (const x of m.values()) x.adj = 100 * (x.v / x.n - b * (x.ip / x.n - xm));
+  return { n, b, xm, per };
+}
+function bloccoMiaBuild() {
+  const base = st.mia;
+  const pz = pezziPariIP(base);
+  if (!pz || pz.n < 10) return `<div class="card vuoto">Troppe poche comparse di ${esc(nome(base))} con questi filtri.</div>`;
+  const scelte = (st.build && st.build[base]) || {};
+  const tendine = SLOT_MIA.map(i => {
+    const voci = [...pz.per[i].entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 25);
+    if (!voci.length) return "";
+    const sel = scelte[i] || "";
+    return `<div class="r" style="align-items:center;gap:8px"><span style="flex:none;width:76px">${SLOT[i]}</span>
+      <select class="chip" data-slotmia="${i}" style="flex:1;min-width:0;margin-top:4px"><option value="">—</option>
+        ${voci.map(([b, x]) => `<option value="${esc(b)}"${b === sel ? " selected" : ""}>${esc(nome(b))} · ${Math.round(x.adj)}% (${x.n})</option>`).join("")}
+      </select></div>`;
+  }).join("");
+  const cambi = [];
+  for (const i of SLOT_MIA) {
+    const mio = scelte[i] && pz.per[i].get(scelte[i]);
+    if (!mio) continue;
+    const alt = [...pz.per[i].entries()].filter(([b, x]) => b !== scelte[i] && x.n >= 10 && x.adj >= mio.adj + 5)
+      .sort((a, b) => b[1].adj - a[1].adj)[0];
+    if (alt) cambi.push({ i, da: scelte[i], mio, a: alt[0], x: alt[1], gain: alt[1].adj - mio.adj });
+  }
+  cambi.sort((a, b) => b.gain - a.gain);
+  const nScelti = SLOT_MIA.filter(i => scelte[i]).length;
+  return `<div class="card kv">${tendine}</div>
+    <p class="nota">Tra parentesi le comparse con ${esc(nome(base))}. % vittorie "a pari IP": tolgo l'effetto dell'IP più alto o più basso di chi porta il pezzo (${pz.b >= 0 ? "+" : ""}${(pz.b * 1000).toFixed(1).replace(".", ",")} punti ogni 10 IP con quest'arma).</p>
+    <h2>Cosa cambiare</h2>
+    <div class="card"><ul class="lista">${!nScelti ? `<li class="vuoto">Scegli i tuoi pezzi qui sopra.</li>`
+      : cambi.length ? cambi.map(c => `<li class="build"><div class="row between"><b>${SLOT[c.i]}</b><b class="win">+${Math.round(c.gain)} punti</b></div>
+        <div class="small" style="margin-top:4px"><span data-pezzo="${esc(c.da)}">${esc(nome(c.da))}</span> ${Math.round(c.mio.adj)}%${pochi(c.mio.n)}
+          → <b data-pezzo="${esc(c.a)}">${esc(nome(c.a))}</b> ${Math.round(c.x.adj)}% <span class="muted">(${c.x.n})</span>${pochi(c.x.n)}</div></li>`).join("")
+      : `<li class="vuoto">Niente da cambiare: per i pezzi scelti non c'è un'alternativa (almeno 10 comparse) che vinca 5 punti in più.</li>`}</ul></div>`;
+}
+
+function vistaScontro() {
+  const armi = statArmi(filtra().righe).filter(a => a.usi >= 5).map(a => a.base).sort((x, y) => nome(x).localeCompare(nome(y), "it"));
+  const opz = sel => `<option value="">Scegli…</option>` + armi.map(b => `<option value="${esc(b)}"${b === sel ? " selected" : ""}>${esc(nome(b))}</option>`).join("");
+  const sg = sogliaIP();
+  let ris = "";
+  if (st.mia && st.nemico) {
+    const r = stimaScontro(st.mia, st.nemico, Number(st.mioIP) || 0, Number(st.nemicoIP) || 0);
+    const perche = [r.n >= 5 ? `match up ${r.base}% a pari IP (${r.n} scontri, ${r.w} vinti)` : `pochi scontri diretti (${r.n}): uso la tua arma in generale (${r.generale}% a pari IP)`];
+    if (r.d) perche.push(`${r.d > 0 ? "hai +" + r.d : "hai " + r.d} IP${r.corr ? ` (${r.corr > 0 ? "+" : ""}${r.corr} punti)` : ""}`);
+    perche.push(`affidabilità ${r.aff}`);
+    let pz = pezziControllo(st.mia, st.nemico);
+    const controTutti = pz.scontri < 15;
+    if (controTutti) pz = pezziControllo(st.mia, "");
+    const blocchiPezzi = [2, 3, 4, 5, 1].map(i => {
+      const top = [...pz.per[i].entries()].filter(([, x]) => x.n >= 3).sort((x, y) => y[1].v / y[1].n - x[1].v / x[1].n || y[1].n - x[1].n).slice(0, 3);
+      return top.length ? `<div class="slot-tit">${SLOT[i]}</div><ul class="lista">${top.map(([bb, x]) => `<li><button class="voce" data-pezzo="${esc(bb)}">${icona(bb, "sm")}
+        <div class="cresci"><div class="nome" style="font-weight:500">${esc(nome(bb))}</div><div class="small muted">${x.n} scontri${pochi(x.n)}</div></div>
+        <div class="num ${winCls(x.v, x.n)}"><b>${pct(x.v, x.n)}%</b></div></button></li>`).join("")}</ul>` : "";
+    }).join("");
+    const nemicoBuild = statBuild(filtra().righe.filter(rr => baseArma(rr) === st.nemico))[0];
+    ris = `
+      <div class="card" style="margin-top:12px;padding:16px;text-align:center">
+        <div class="small muted">Stima di vittoria</div>
+        <div style="font-size:34px;font-weight:700" class="${r.verdetto[1]}">${r.verdetto[0]} · ${r.p}%</div>
+        <div class="small muted" style="margin-top:4px">${esc(perche.join(" · "))}</div>
+      </div>
+      <h2>Pezzi che vincono di più ${controTutti ? "con la tua arma (contro tutti)" : "contro " + esc(nome(st.nemico))}</h2>
+      <div class="card">${blocchiPezzi || `<div class="vuoto">Dati insufficienti</div>`}</div>
+      ${nemicoBuild ? `<h2>Build più usata dal nemico</h2>
+      <div class="card build"><div class="small muted">${nemicoBuild.usi} ${nemicoBuild.usi === 1 ? "volta" : "volte"} · tocca un pezzo per vedere le sue skill</div>
+        <div class="icone">${nemicoBuild.pezzi.map(x => x ? `<span data-pezzo="${esc(x)}" title="${esc(nome(x))}">${icona(x, "sm")}</span>` : "").join("")}</div></div>` : ""}
+      <p class="nota">Vale per gli scontri 1 contro 1 (server e periodo dai filtri in alto). Il match up è ricalcolato "a pari IP": tolgo l'effetto della differenza di IP di ogni scontro passato. Soglie: 58% o più = Ingaggia, sotto 45% = Evita.</p>`;
+  }
+  $("#vista").innerHTML = `
+    <div class="split" style="margin-top:12px">
+      <div class="card kv"><div class="slot-tit" style="padding:0">La tua arma</div>
+        <select class="chip" id="s-mia" style="width:100%;margin-top:6px">${opz(st.mia)}</select>
+        <input class="cerca" id="s-mioIP" inputmode="numeric" placeholder="Il tuo IP (facolt.)" value="${esc(st.mioIP)}" style="margin:6px 0 0;padding:7px 10px;font-size:15px"></div>
+      <div class="card kv"><div class="slot-tit" style="padding:0">Il nemico</div>
+        <select class="chip" id="s-nemico" style="width:100%;margin-top:6px">${opz(st.nemico)}</select>
+        <input class="cerca" id="s-nemicoIP" inputmode="numeric" placeholder="IP nemico (facolt.)" value="${esc(st.nemicoIP)}" style="margin:6px 0 0;padding:7px 10px;font-size:15px"></div>
+    </div>
+    ${ris || `<div class="card vuoto" style="margin-top:12px">Scegli la tua arma e quella del nemico.</div>`}
+    ${st.mia ? `<h2>La mia build <span class="muted small">(${esc(nome(st.mia))})</span></h2>${bloccoMiaBuild()}` : ""}
+    <h2>Quando l'IP rende il fight sfavorevole</h2>
+    <div class="card kv">${sg ? `Con questi dati, da <b>${sg.d} IP</b> rispetto al nemico vinci meno del 45% (${sg.p}% su ${sg.n} scontri).`
+      : "Dai dati non emerge una soglia: anche con meno IP si vince almeno il 45% degli 1v1, quindi conta più la build."}</div>`;
+  const agg = () => { st.mia = $("#s-mia").value; st.nemico = $("#s-nemico").value; st.mioIP = $("#s-mioIP").value.replace(/\D/g, ""); st.nemicoIP = $("#s-nemicoIP").value.replace(/\D/g, ""); salva(); vistaScontro(); };
+  ["#s-mia", "#s-nemico", "#s-mioIP", "#s-nemicoIP"].forEach(id => $(id).onchange = agg);
+  document.querySelectorAll("[data-slotmia]").forEach(s => s.onchange = () => {
+    const y = window.scrollY;
+    st.build = st.build || {};
+    const mie = st.build[st.mia] = st.build[st.mia] || {};
+    if (s.value) mie[s.dataset.slotmia] = s.value; else delete mie[s.dataset.slotmia];
+    salva(); vistaScontro(); window.scrollTo(0, y);
+  });
+  collegaPezzi();
+}
+
+// ---------------------------------------------------------------- Gilde
+function statGilde(righe) {
+  const m = new Map();
+  for (const r of righe) {
+    const g = r[11];
+    if (g === undefined || g < 0) continue;
+    let x = m.get(g);
+    if (!x) m.set(g, x = { g, usi: 0, vinte: 0, ip: 0, alleanza: new Map(), server: new Map() });
+    x.usi++; x.vinte += r[1] !== 2; x.ip += r[2];
+    if (r[12] >= 0) x.alleanza.set(r[12], (x.alleanza.get(r[12]) || 0) + 1);
+    const s = D.eventi[r[0]][0];
+    x.server.set(s, (x.server.get(s) || 0) + 1);
+  }
+  return [...m.values()];
+}
+const piuFreq = mappa => [...mappa.entries()].sort((a, b) => b[1] - a[1])[0];
+
+const sceltaGG = attivo => `<div class="chips" style="margin-top:10px">
+  <button class="chip" data-gg="gilde" aria-pressed="${attivo === "gilde"}">Gilde</button>
+  <button class="chip" data-gg="giocatori" aria-pressed="${attivo === "giocatori"}">Giocatori</button></div>`;
+function collegaGG() { document.querySelectorAll("[data-gg]").forEach(b => b.onclick = () => { location.hash = b.dataset.gg; }); }
+
+// ---------------------------------------------------------------- Giocatori
+function statGiocatori(righe) {
+  const m = new Map();
+  for (const r of righe) {
+    const g = r[13];
+    if (g === undefined) continue;
+    let x = m.get(g);
+    if (!x) m.set(g, x = { g, usi: 0, lati: [0, 0, 0], ip: 0, ultimo: 0, gilda: new Map(), server: D.eventi[r[0]][0] });
+    x.usi++; x.lati[r[1]]++; x.ip += r[2];
+    x.ultimo = Math.max(x.ultimo, D.eventi[r[0]][1]);
+    if (r[11] >= 0) x.gilda.set(r[11], (x.gilda.get(r[11]) || 0) + 1);
+  }
+  return [...m.values()];
+}
+const quandoFa = minuti => {
+  const h = (Date.now() / 60000 - minuti) / 60;
+  return h < 1 ? "meno di un'ora fa" : h < 48 ? `${Math.round(h)} ore fa` : `${Math.round(h / 24)} giorni fa`;
+};
+function vistaGiocatori() {
+  if (!D.giocatori) {
+    $("#vista").innerHTML = sceltaGG("giocatori") + `<div class="card vuoto" style="margin-top:12px">I giocatori compariranno dopo il prossimo invio dei dati dal PC.</div>`;
+    collegaGG(); return;
+  }
+  const q = (st.cercaGioc || "").trim().toLowerCase();
+  const tutti = statGiocatori(filtra().righe);
+  const lista = q.length >= 2
+    ? tutti.filter(x => D.giocatori[x.g].toLowerCase().includes(q)).sort((a, b) => b.usi - a.usi).slice(0, 60)
+    : tutti.sort((a, b) => b.usi - a.usi).slice(0, 30);
+  $("#vista").innerHTML = sceltaGG("giocatori") + `
+    <input class="cerca" id="cerca-p" type="search" placeholder="Cerca un giocatore (almeno 2 lettere)" value="${esc(st.cercaGioc || "")}" autocomplete="off" autocapitalize="off">
+    <div class="small muted" style="margin:0 0 8px">${tutti.length.toLocaleString("it-IT")} giocatori visti${q.length >= 2 ? ` · ${lista.length} trovati` : " · i più presenti"}</div>
+    <div class="card"><ul class="lista">${lista.length ? lista.map(x => {
+      const gl = piuFreq(x.gilda);
+      return `<li><button class="voce" data-gioc="${x.g}"><div class="cresci"><div class="nome">${esc(D.giocatori[x.g])}</div>
+        <div class="small muted">${gl ? esc(D.gilde[gl[0]]) + " · " : ""}${esc(SERVER_NOMI[D.info.server[x.server]] || "")} · visto ${quandoFa(x.ultimo)}</div></div>
+        <div class="num"><div>${x.lati[0]} K · ${x.lati[1]} A · ${x.lati[2]} M</div><div class="small muted">${x.usi} comparse</div></div></button></li>`;
+    }).join("") : `<li class="vuoto">Nessun giocatore trovato</li>`}</ul></div>
+    <p class="nota">K = uccisioni (colpo finale), A = aiuti, M = morti. Con i filtri in alto. Solo le uccisioni che il PC ha raccolto dal killboard pubblico.</p>`;
+  collegaGG();
+  const c = $("#cerca-p");
+  c.oninput = () => { st.cercaGioc = c.value; const pos = c.selectionStart; vistaGiocatori(); const n = $("#cerca-p"); n.focus(); n.setSelectionRange(pos, pos); };
+  document.querySelectorAll("[data-gioc]").forEach(b => b.onclick = () => { location.hash = "giocatore/" + b.dataset.gioc; });
+}
+function vistaGiocatore(g) {
+  window.scrollTo(0, 0);
+  const righe = filtra().righe.filter(r => r[13] === g);
+  const x = statGiocatori(righe)[0];
+  const gl = x && piuFreq(x.gilda);
+  const armi = statArmi(righe).sort((a, b) => b.usi - a.usi).slice(0, 8);
+  $("#vista").innerHTML = `
+    <div class="row" style="margin:12px 0 0"><button class="indietro" id="indietro">‹ Giocatori</button></div>
+    <h1 style="font-size:21px;margin-top:12px">${esc((D.giocatori || [])[g] || "?")}</h1>
+    <div class="muted">${gl ? "Gilda " + esc(D.gilde[gl[0]]) : "Nessuna gilda vista"}${x ? " · " + esc(SERVER_NOMI[D.info.server[x.server]] || "") + " · visto " + quandoFa(x.ultimo) : ""}</div>
+    ${x ? `
+    <div class="tiles">
+      <div class="card tile"><b class="win">${x.lati[0]}</b><span>uccisioni</span></div>
+      <div class="card tile"><b>${x.lati[1]}</b><span>aiuti</span></div>
+      <div class="card tile"><b class="lose">${x.lati[2]}</b><span>morti</span></div>
+    </div>
+    <div class="card kv" style="margin-top:8px"><div class="r"><span>IP medio</span><span class="num">${Math.round(x.ip / x.usi)}</span></div>
+      <div class="r"><span>Dalla parte di chi uccide</span><span class="num ${winCls(x.lati[0] + x.lati[1], x.usi)}">${pct(x.lati[0] + x.lati[1], x.usi)}%${pochi(x.usi)}</span></div></div>
+    <h2>Armi usate</h2><div class="card"><ul class="lista">${armi.map(a => rigaArma(a)).join("")}</ul></div>
+    <h2>Build</h2>${bloccoBuild(statBuild(righe).slice(0, 5), x.usi, "Tocca un'icona per vedere il pezzo.")}`
+    : `<div class="card vuoto" style="margin-top:12px">Nessuna comparsa con questi filtri. Prova "Tutti i server" o 14 giorni.</div>`}`;
+  $("#indietro").onclick = () => { if (history.length > 1) history.back(); else location.hash = "giocatori"; };
+  collegaArmi(); collegaPezzi();
+}
+
+function vistaGilde() {
+  if (!haGilde()) {
+    $("#vista").innerHTML = sceltaGG("gilde") + `<div class="card vuoto" style="margin-top:16px">Le gilde compariranno dopo la prossima raccolta: da oggi il PC salva anche gilda e alleanza dei giocatori.</div>`;
+    collegaGG(); return;
+  }
+  const q = st.cercaGilda.trim().toLowerCase();
+  const tutte = statGilde(filtra().righe).sort((a, b) => b.usi - a.usi);
+  const lista = tutte.filter(x => !q || D.gilde[x.g].toLowerCase().includes(q)).slice(0, 60);
+  $("#vista").innerHTML = sceltaGG("gilde") + `
+    <input class="cerca" id="cerca-g" type="search" placeholder="Cerca una gilda" value="${esc(st.cercaGilda)}" autocomplete="off">
+    <div class="small muted" style="margin:0 0 8px">${tutte.length} gilde viste${lista.length < tutte.length ? ` · ne mostro ${lista.length}` : ""}</div>
+    <div class="card"><ul class="lista">${lista.length ? lista.map(x => {
+      const al = piuFreq(x.alleanza);
+      return `<li><button class="voce" data-gilda="${x.g}"><div class="cresci"><div class="nome">${esc(D.gilde[x.g])}</div>
+        <div class="small muted">${al ? esc(D.gilde[al[0]]) + " · " : ""}${esc(SERVER_NOMI[D.info.server[piuFreq(x.server)[0]]] || "")}</div></div>
+        <div class="num"><div>${x.usi}</div><div class="small ${winCls(x.vinte, x.usi)}">${pct(x.vinte, x.usi)}% vitt.</div></div></button></li>`;
+    }).join("") : `<li class="vuoto">Nessuna gilda trovata</li>`}</ul></div>
+    <p class="nota">Numero = comparse dei membri nelle uccisioni (come killer, aiutanti o vittime).</p>`;
+  collegaGG();
+  const c = $("#cerca-g");
+  c.oninput = () => { st.cercaGilda = c.value; const pos = c.selectionStart; vistaGilde(); const n = $("#cerca-g"); n.focus(); n.setSelectionRange(pos, pos); };
+  document.querySelectorAll("[data-gilda]").forEach(b => b.onclick = () => { location.hash = "gilda/" + b.dataset.gilda; });
+}
+
+function vistaGilda(g) {
+  window.scrollTo(0, 0);
+  const righe = filtra().righe.filter(r => r[11] === g);
+  const x = statGilde(righe)[0];
+  const armi = statArmi(righe).sort((a, b) => b.usi - a.usi).slice(0, 10);
+  const cat = [0, 0, 0, 0];
+  for (const r of righe) cat[categoria(baseArma(r))]++;
+  const al = x && piuFreq(x.alleanza);
+  $("#vista").innerHTML = `
+    <div class="row" style="margin:12px 0 0"><button class="indietro" id="indietro">‹ Gilde</button></div>
+    <h1 style="font-size:21px;margin-top:12px">${esc(D.gilde[g] || "?")}</h1>
+    <div class="muted">${al ? "Alleanza " + esc(D.gilde[al[0]]) : "Nessuna alleanza vista"}</div>
+    ${x ? `
+    <div class="tiles">
+      <div class="card tile"><b>${x.usi}</b><span>comparse</span></div>
+      <div class="card tile"><b class="${winCls(x.vinte, x.usi)}">${pct(x.vinte, x.usi)}%</b><span>vittorie</span></div>
+      <div class="card tile"><b>${Math.round(x.ip / x.usi)}</b><span>IP medio</span></div>
+    </div>
+    <h2>Ruoli</h2><div class="card kv">${barraComp(cat)}${legenda()}</div>
+    <h2>Armi preferite</h2><div class="card"><ul class="lista">${armi.map(a => rigaArma(a)).join("")}</ul></div>
+    <h2>Build più usate</h2>${bloccoBuild(statBuild(righe).slice(0, 5), x.usi, "Tocca un'icona per vedere il pezzo.")}`
+    : `<div class="card vuoto" style="margin-top:12px">Nessuna comparsa con questi filtri.</div>`}`;
+  $("#indietro").onclick = () => { if (history.length > 1) history.back(); else location.hash = "gilde"; };
+  collegaArmi(); collegaPezzi();
+}
+
+// ---------------------------------------------------------------- scheda pezzo
+function apriPezzo(base) {
+  const g = G[base];
+  $("#sheet").innerHTML = `<div class="row" style="margin-bottom:10px">${icona(base, "big")}
+    <div class="cresci"><b style="font-size:17px">${esc(nome(base))}</b>${g && g.desc ? `<div class="small muted">${esc(g.desc)}</div>` : ""}</div>
+    <button class="indietro" id="chiudi">Chiudi</button></div>${schedaSkill(base)}`;
+  $("#sheet").classList.add("aperto"); $("#sheet-bg").classList.add("aperto");
+  $("#chiudi").onclick = chiudiPezzo;
+}
+function chiudiPezzo() { $("#sheet").classList.remove("aperto"); $("#sheet-bg").classList.remove("aperto"); }
+$("#sheet-bg").onclick = chiudiPezzo;
+
+$("#tema").onclick = () => {
+  const adesso = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const nuovo = adesso === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = nuovo;
+  try { localStorage.setItem("tema", nuovo); } catch (e) {}
+};
+window.addEventListener("hashchange", () => { chiudiPezzo(); mostra(); });
+
+carica().then(() => { filtriUI(); mostra(); }).catch(e => {
+  $("#vista").innerHTML = `<div class="card vuoto" style="margin-top:16px">Non riesco a caricare i dati: ${esc(e.message)}.<br>Se il PC non ha ancora fatto il primo invio, riprova dopo la prossima raccolta.</div>`;
+});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
